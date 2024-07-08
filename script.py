@@ -32,6 +32,9 @@ def get_file_extension(language):
     # Mapeo de lenguajes a extensiones de archivo
     extensions = {
         'GNU C++': 'cpp',
+        'GNU C++11': 'cpp',
+        'GNU C++14': 'cpp',
+        'GNU C++17': 'cpp',
         'C++20 (GCC 13-64)': 'cpp',
         'Python 2': 'py',
         'Python 3': 'py',
@@ -39,24 +42,38 @@ def get_file_extension(language):
         'C': 'c',
         'GNU C': 'c',
         'C#': 'cs',
+        'JavaScript': 'js',
+        'Ruby': 'rb',
+        'PHP': 'php',
+        'Haskell': 'hs',
+        'Go': 'go',
+        'Rust': 'rs',
         # Agregar otros lenguajes según sea necesario
     }
     return extensions.get(language, 'txt')
 
 def save_solution(solution, solutions_dict, is_gym=False):
-    problem_id = f"{solution['problem']['contestId']}{solution['problem']['index']}"
+    contest_id = solution['problem']['contestId']
+    index = solution['problem']['index']
+    problem_name = solution['problem']['name']
+    problem_id = f"{contest_id}{index}-{problem_name}"
     language = solution['programmingLanguage']
     file_extension = get_file_extension(language)
     
     folder_type = 'gym' if is_gym else 'contest'
-    dir_path = os.path.join('codeforces', folder_type, f"{solution['problem']['contestId']}{solution['problem']['index']}")
+    dir_path = os.path.join('codeforces', folder_type, f"{contest_id}{index}")
     os.makedirs(dir_path, exist_ok=True)
     
-    code = fetch_solution_code(solution['contestId'], solution['id'], is_gym=is_gym)
+    code = fetch_solution_code(contest_id, solution['id'], is_gym=is_gym)
     if code:
         file_path = os.path.join(dir_path, f'solution.{file_extension}')
         if problem_id not in solutions_dict:
-            solutions_dict[problem_id] = file_path
+            solutions_dict[problem_id] = {
+                'file_path': file_path,
+                'contest_id': contest_id,
+                'index': index,
+                'language': language
+            }
             with open(file_path, 'w') as f:
                 f.write(solution['programmingLanguage'] + '\n\n' + code)
         else:
@@ -66,12 +83,15 @@ def save_solution(solution, solutions_dict, is_gym=False):
 
 def generate_readme(solutions_dict):
     readme_content = "# Codeforces Solutions\n\n## Estadísticas\n\n"
-    readme_content += "| Problema | Lenguaje | Enlace |\n"
-    readme_content += "|----------|----------|--------|\n"
+    readme_content += "| Problema | Lenguaje | Enlace a Solución | Enlace a Problema |\n"
+    readme_content += "|----------|----------|-------------------|-------------------|\n"
 
-    for problem_id, file_path in solutions_dict.items():
-        language = file_path.split('.')[-1]
-        readme_content += f"| [{problem_id}](./{file_path}) | {language} | [solution]({file_path}) |\n"
+    for problem_id, details in solutions_dict.items():
+        contest_id = details['contest_id']
+        index = details['index']
+        language = details['language'].split()[0].lower()
+        problem_url = f"https://codeforces.com/contest/{contest_id}/problem/{index}" if contest_id < 100000 else f"https://codeforces.com/gym/{contest_id}/problem/{index}"
+        readme_content += f"| [{problem_id}](./{details['file_path']}) | {language} | [solution]({details['file_path']}) | [problem]({problem_url}) |\n"
     
     with open('README.md', 'w') as f:
         f.write(readme_content)
