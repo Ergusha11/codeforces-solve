@@ -1,10 +1,9 @@
-# Codeforces Solved Problems
+# Codeforces Solutions
 
-## Statistics
-**Total Solved Problems**: 4
+## Estadísticas
 
-## Problems
-- [105164-E](https://codeforces.com/contest/105164/problem/E) - Evaluating Linear Expressions
-- [1352-C](https://codeforces.com/contest/1352/problem/C) - K-th Not Divisible by n
-- [1352-A](https://codeforces.com/contest/1352/problem/A) - Sum of Round Numbers
-- [4-A](https://codeforces.com/contest/4/problem/A) - Watermelon
+| Problema | Lenguaje | Enlace |
+|----------|----------|--------|
+| [1352C](./codeforces/contest/1352C/solution.cpp) | cpp | [solution](codeforces/contest/1352C/solution.cpp) |
+| [1352A](./codeforces/contest/1352A/solution.cpp) | cpp | [solution](codeforces/contest/1352A/solution.cpp) |
+| [4A](./codeforces/contest/4A/solution.cpp) | cpp | [solution](codeforces/contest/4A/solution.cpp) |

@@ -5,8 +5,12 @@ C++20 (GCC 13-64)
 using namespace std;
 
 int solution(int num){
-	if(num%2==0 && num !=2){
-		return 1;
+	int x;
+	x = num/2;
+	if(x > 1){
+		if((2*x)==num){
+			return 1;
+		}
 	}
 	return 0;
 }

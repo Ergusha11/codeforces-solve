@@ -1,39 +1,96 @@
 import requests
-import json
+import os
+import subprocess
+from bs4 import BeautifulSoup
+import time
 
-def get_solved_problems(user_handle):
-    url = f'https://codeforces.com/api/user.status?handle={user_handle}'
+USERNAME = 'Ergusha11'  # Reemplaza con tu usuario de Codeforces
+
+def fetch_solutions(username):
+    url = f'https://codeforces.com/api/user.status?handle={username}'
     response = requests.get(url)
-    data = response.json()
+    if response.status_code == 200:
+        return response.json()['result']
+    else:
+        print(f'Error fetching solutions: {response.status_code}')
+        return []
 
-    solved_problems = {}
-    if data['status'] == 'OK':
-        for result in data['result']:
-            if result['verdict'] == 'OK':
-                problem = result['problem']
-                contest_id = problem['contestId']
-                problem_index = problem['index']
-                problem_name = problem['name']
-                solved_problems[f'{contest_id}-{problem_index}'] = problem_name
+def fetch_solution_code(contest_id, submission_id, is_gym=False, retries=3, delay=5):
+    base_url = 'https://codeforces.com/gym' if is_gym else 'https://codeforces.com/contest'
+    url = f'{base_url}/{contest_id}/submission/{submission_id}'
+    for attempt in range(retries):
+        response = requests.get(url)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, 'html.parser')
+            code_div = soup.find('pre', {'id': 'program-source-text'})
+            if code_div:
+                return code_div.text
+        time.sleep(delay)
+    return None
 
-    return solved_problems
+def get_file_extension(language):
+    # Mapeo de lenguajes a extensiones de archivo
+    extensions = {
+        'GNU C++': 'cpp',
+        'C++20 (GCC 13-64)': 'cpp',
+        'Python 2': 'py',
+        'Python 3': 'py',
+        'Java': 'java',
+        'C': 'c',
+        'GNU C': 'c',
+        'C#': 'cs',
+        # Agregar otros lenguajes según sea necesario
+    }
+    return extensions.get(language, 'txt')
 
-def generate_markdown(solved_problems):
-    markdown_content = "# Codeforces Solved Problems\n\n"
-    markdown_content += "## Statistics\n"
-    markdown_content += f"**Total Solved Problems**: {len(solved_problems)}\n\n"
-    markdown_content += "## Problems\n"
-    for problem, name in solved_problems.items():
-        markdown_content += f"- [{problem}](https://codeforces.com/contest/{problem.split('-')[0]}/problem/{problem.split('-')[1]}) - {name}\n"
-    return markdown_content
+def save_solution(solution, solutions_dict, is_gym=False):
+    problem_id = f"{solution['problem']['contestId']}{solution['problem']['index']}"
+    language = solution['programmingLanguage']
+    file_extension = get_file_extension(language)
+    
+    folder_type = 'gym' if is_gym else 'contest'
+    dir_path = os.path.join('codeforces', folder_type, f"{solution['problem']['contestId']}{solution['problem']['index']}")
+    os.makedirs(dir_path, exist_ok=True)
+    
+    code = fetch_solution_code(solution['contestId'], solution['id'], is_gym=is_gym)
+    if code:
+        file_path = os.path.join(dir_path, f'solution.{file_extension}')
+        if problem_id not in solutions_dict:
+            solutions_dict[problem_id] = file_path
+            with open(file_path, 'w') as f:
+                f.write(solution['programmingLanguage'] + '\n\n' + code)
+        else:
+            print(f"Skipping duplicate solution for problem {problem_id}")
+    else:
+        print(f"Error fetching code for problem {problem_id} (is_gym={is_gym})")
 
-def save_to_file(content, file_path):
-    with open(file_path, 'w') as file:
-        file.write(content)
+def generate_readme(solutions_dict):
+    readme_content = "# Codeforces Solutions\n\n## Estadísticas\n\n"
+    readme_content += "| Problema | Lenguaje | Enlace |\n"
+    readme_content += "|----------|----------|--------|\n"
+
+    for problem_id, file_path in solutions_dict.items():
+        language = file_path.split('.')[-1]
+        readme_content += f"| [{problem_id}](./{file_path}) | {language} | [solution]({file_path}) |\n"
+    
+    with open('README.md', 'w') as f:
+        f.write(readme_content)
+
+def git_push():
+    try:
+        subprocess.check_call(['git', 'add', '.'])
+        subprocess.check_call(['git', 'commit', '-m', 'Update Codeforces solutions'])
+        subprocess.check_call(['git', 'push', 'origin', 'main'])
+    except subprocess.CalledProcessError as e:
+        print(f"Error during git operation: {e}")
 
 if __name__ == "__main__":
-    user_handle = 'Ergusha11'
-    solved_problems = get_solved_problems(user_handle)
-    markdown_content = generate_markdown(solved_problems)
-    save_to_file(markdown_content, 'README.md')
+    solutions = fetch_solutions(USERNAME)
+    solutions_dict = {}
+    for solution in solutions:
+        if solution['verdict'] == 'OK':
+            is_gym = solution['problem']['contestId'] >= 100000  # Identifica problemas de Gym
+            save_solution(solution, solutions_dict, is_gym=is_gym)
+    generate_readme(solutions_dict)
+    git_push()  # Descomenta esta línea para hacer push a GitHub automáticamente
 
