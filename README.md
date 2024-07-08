@@ -1,12 +1,10 @@
-# Codeforces Solutions
+# Codeforces Solved Problems
 
-## Estadísticas
+## Statistics
+**Total Solved Problems**: 4
 
-| Problema | Lenguaje | Tiempo | Veredicto |
-|----------|----------|--------|-----------|
-| [105164E](./codeforces/105164E) | C++20 (GCC 13-64) | 1715878226 | OK |
-| [105164E](./codeforces/105164E) | C++20 (GCC 13-64) | 1715877943 | OK |
-| [1352C](./codeforces/1352C) | C++20 (GCC 13-64) | 1715393947 | OK |
-| [1352A](./codeforces/1352A) | C++20 (GCC 13-64) | 1715287369 | OK |
-| [4A](./codeforces/4A) | C++20 (GCC 13-64) | 1715142751 | OK |
-| [4A](./codeforces/4A) | C++20 (GCC 13-64) | 1715142602 | OK |
+## Problems
+- [105164-E](https://codeforces.com/contest/105164/problem/E) - Evaluating Linear Expressions
+- [1352-C](https://codeforces.com/contest/1352/problem/C) - K-th Not Divisible by n
+- [1352-A](https://codeforces.com/contest/1352/problem/A) - Sum of Round Numbers
+- [4-A](https://codeforces.com/contest/4/problem/A) - Watermelon

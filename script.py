@@ -1,75 +1,39 @@
 import requests
-import os
-import subprocess
-from bs4 import BeautifulSoup
+import json
 
-USERNAME = 'Ergusha11'  # Reemplaza con tu usuario de Codeforces
-
-def fetch_solutions(username):
-    url = f'https://codeforces.com/api/user.status?handle={username}'
+def get_solved_problems(user_handle):
+    url = f'https://codeforces.com/api/user.status?handle={user_handle}'
     response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()['result']
-    else:
-        print(f'Error fetching solutions: {response.status_code}')
-        return []
+    data = response.json()
 
-def fetch_solution_code(contest_id, submission_id):
-    url = f'https://codeforces.com/contest/{contest_id}/submission/{submission_id}'
-    response = requests.get(url)
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.content, 'html.parser')
-        code_div = soup.find('pre', {'id': 'program-source-text'})
-        if code_div:
-            return code_div.text
-    return None
+    solved_problems = {}
+    if data['status'] == 'OK':
+        for result in data['result']:
+            if result['verdict'] == 'OK':
+                problem = result['problem']
+                contest_id = problem['contestId']
+                problem_index = problem['index']
+                problem_name = problem['name']
+                solved_problems[f'{contest_id}-{problem_index}'] = problem_name
 
-def save_solution(solution):
-    problem_id = f"{solution['problem']['contestId']}{solution['problem']['index']}"
-    language = solution['programmingLanguage'].split()[0].lower()
-    file_extension = {'cpp': 'cpp', 'python': 'py', 'java': 'java'}.get(language, 'txt')
-    
-    dir_path = os.path.join('codeforces', f"{solution['problem']['contestId']}{solution['problem']['index']}")
-    os.makedirs(dir_path, exist_ok=True)
-    
-    code = fetch_solution_code(solution['contestId'], solution['id'])
-    if code:
-        file_path = os.path.join(dir_path, f'solution.{file_extension}')
-        with open(file_path, 'w') as f:
-            f.write(solution['programmingLanguage'] + '\n\n' + code)
-    else:
-        print(f"Error fetching code for problem {problem_id}")
+    return solved_problems
 
-def generate_readme(solutions):
-    readme_content = "# Codeforces Solutions\n\n## Estadísticas\n\n"
-    readme_content += "| Problema | Lenguaje | Tiempo | Veredicto |\n"
-    readme_content += "|----------|----------|--------|-----------|\n"
+def generate_markdown(solved_problems):
+    markdown_content = "# Codeforces Solved Problems\n\n"
+    markdown_content += "## Statistics\n"
+    markdown_content += f"**Total Solved Problems**: {len(solved_problems)}\n\n"
+    markdown_content += "## Problems\n"
+    for problem, name in solved_problems.items():
+        markdown_content += f"- [{problem}](https://codeforces.com/contest/{problem.split('-')[0]}/problem/{problem.split('-')[1]}) - {name}\n"
+    return markdown_content
 
-    for solution in solutions:
-        if solution['verdict'] == 'OK':
-            problem_id = f"{solution['problem']['contestId']}{solution['problem']['index']}"
-            language = solution['programmingLanguage']
-            time = solution['creationTimeSeconds']
-            verdict = solution['verdict']
-            
-            readme_content += f"| [{problem_id}](./codeforces/{problem_id}) | {language} | {time} | {verdict} |\n"
-    
-    with open('README.md', 'w') as f:
-        f.write(readme_content)
-
-def git_push():
-    try:
-        subprocess.check_call(['git', 'add', '.'])
-        subprocess.check_call(['git', 'commit', '-m', 'Update Codeforces solutions'])
-        subprocess.check_call(['git', 'push', 'origin', 'main'])
-    except subprocess.CalledProcessError as e:
-        print(f"Error during git operation: {e}")
+def save_to_file(content, file_path):
+    with open(file_path, 'w') as file:
+        file.write(content)
 
 if __name__ == "__main__":
-    solutions = fetch_solutions(USERNAME)
-    for solution in solutions:
-        if solution['verdict'] == 'OK':
-            save_solution(solution)
-    generate_readme(solutions)
-    git_push()
+    user_handle = 'Ergusha11'
+    solved_problems = get_solved_problems(user_handle)
+    markdown_content = generate_markdown(solved_problems)
+    save_to_file(markdown_content, 'README.md')
 
