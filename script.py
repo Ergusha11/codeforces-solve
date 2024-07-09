@@ -3,28 +3,64 @@ import os
 import subprocess
 from bs4 import BeautifulSoup
 import time
+import getpass
 
-USERNAME = 'Ergusha11'  # Reemplaza con tu usuario de Codeforces
+# Solicitar credenciales al usuario
+USERNAME = input("Ingresa tu usuario de Codeforces: ")
+PASSWORD = getpass.getpass("Ingresa tu contraseña de Codeforces: ")
 
-def fetch_solutions(username):
+LOGIN_URL = 'https://codeforces.com/enter'
+
+def login(session, username, password):
+    # Obtén la página de inicio de sesión
+    response = session.get(LOGIN_URL)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Encuentra el token CSRF
+    csrf_token = soup.find('meta', {'name': 'X-Csrf-Token'})['content']
+
+    # Datos del formulario de inicio de sesión
+    login_data = {
+        'csrf_token': csrf_token,
+        'action': 'enter',
+        'handleOrEmail': username,
+        'password': password,
+        '_tta': '176'
+    }
+
+    # Realiza la solicitud de inicio de sesión
+    response = session.post(LOGIN_URL, data=login_data)
+    return response.status_code == 200
+
+def fetch_solutions(session, username):
     url = f'https://codeforces.com/api/user.status?handle={username}'
-    response = requests.get(url)
+    response = session.get(url)
     if response.status_code == 200:
         return response.json()['result']
     else:
         print(f'Error fetching solutions: {response.status_code}')
         return []
 
-def fetch_solution_code(contest_id, submission_id, is_gym=False, retries=3, delay=5):
+def fetch_solution_code(session, contest_id, submission_id, is_gym=False, retries=3, delay=5):
     base_url = 'https://codeforces.com/gym' if is_gym else 'https://codeforces.com/contest'
     url = f'{base_url}/{contest_id}/submission/{submission_id}'
     for attempt in range(retries):
-        response = requests.get(url)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            code_div = soup.find('pre', {'id': 'program-source-text'})
-            if code_div:
-                return code_div.text
+        try:
+            response = session.get(url)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                # Intentar encontrar el elemento pre con el ID 'program-source-text'
+                code_div = soup.find('pre', {'id': 'program-source-text'})
+                
+                if code_div:
+                    print(f"Code div found for {url}")
+                    return code_div.text
+                else:
+                    print(f"Code div not found for {url}")
+            else:
+                print(f"Error fetching code: {response.status_code} for {url}")
+        except requests.exceptions.RequestException as e:
+            print(f"Request exception: {e} for {url}")
         time.sleep(delay)
     return None
 
@@ -52,7 +88,7 @@ def get_file_extension(language):
     }
     return extensions.get(language, 'txt')
 
-def save_solution(solution, solutions_dict, is_gym=False):
+def save_solution(session, solution, solutions_dict, is_gym=False):
     contest_id = solution['problem']['contestId']
     index = solution['problem']['index']
     problem_name = solution['problem']['name']
@@ -64,7 +100,7 @@ def save_solution(solution, solutions_dict, is_gym=False):
     dir_path = os.path.join('codeforces', folder_type, f"{contest_id}{index}")
     os.makedirs(dir_path, exist_ok=True)
     
-    code = fetch_solution_code(contest_id, solution['id'], is_gym=is_gym)
+    code = fetch_solution_code(session, contest_id, solution['id'], is_gym=is_gym)
     if code:
         file_path = os.path.join(dir_path, f'solution.{file_extension}')
         if problem_id not in solutions_dict:
@@ -105,12 +141,19 @@ def git_push():
         print(f"Error during git operation: {e}")
 
 if __name__ == "__main__":
-    solutions = fetch_solutions(USERNAME)
-    solutions_dict = {}
-    for solution in solutions:
-        if solution['verdict'] == 'OK':
-            is_gym = solution['problem']['contestId'] >= 100000  # Identifica problemas de Gym
-            save_solution(solution, solutions_dict, is_gym=is_gym)
-    generate_readme(solutions_dict)
-    git_push()  # Descomenta esta línea para hacer push a GitHub automáticamente
+    with requests.Session() as session:
+        # Inicia sesión en Codeforces
+        if login(session, USERNAME, PASSWORD):
+            print("Login successful!")
+            # Obtén las soluciones
+            solutions = fetch_solutions(session, USERNAME)
+            solutions_dict = {}
+            for solution in solutions:
+                if solution['verdict'] == 'OK':
+                    is_gym = solution['problem']['contestId'] >= 100000  # Identifica problemas de Gym
+                    save_solution(session, solution, solutions_dict, is_gym=is_gym)
+            generate_readme(solutions_dict)
+            # git_push()  # Descomenta esta línea para hacer push a GitHub automáticamente
+        else:
+            print("Login failed!")
 
